@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aplikasi Viewer Dokumen & PDF</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex h-screen overflow-hidden">
+
+    <!-- Mobile Overlay Backdrop -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black/50 z-20 hidden md:hidden transition-opacity duration-300" onclick="toggleSidebar()"></div>
+
+    <!-- Sidebar Navigation -->
+    <aside id="sidebar" class="fixed md:relative z-30 w-72 h-full bg-white border-r border-slate-200 flex flex-col transition-all duration-300 transform -translate-x-full md:translate-x-0 md:ml-0 shadow-lg md:shadow-none shrink-0">
+        
+        <!-- Sidebar Header -->
+        <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-file-pdf text-red-600 text-2xl"></i>
+                <h1 class="font-bold text-slate-800 text-lg tracking-tight">DocViewer Pro</h1>
+            </div>
+            <button onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-200/60 md:hidden" title="Tutup Sidebar">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+
+        <!-- Search Bar in Sidebar -->
+        <div class="p-3 border-b border-slate-100">
+            <div class="relative">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    oninput="handleSearch()"
+                    placeholder="Cari file PDF / dokumen..." 
+                    class="w-full pl-9 pr-8 py-2 text-sm bg-slate-100 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                />
+                <button 
+                    id="clear-search" 
+                    onclick="clearSearch()" 
+                    class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1" 
+                    title="Hapus Pencarian">
+                    <i class="fa-solid fa-circle-xmark text-sm"></i>
+                </button>
+            </div>
+            <div class="flex items-center justify-between mt-2 px-1">
+                <span id="file-count" class="text-xs font-medium text-slate-500">Memuat berkas...</span>
+                <button onclick="fetchCSVData()" class="text-xs text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
+                    <i class="fa-solid fa-rotate-right text-[10px]"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation / File List -->
+        <div class="flex-1 overflow-y-auto p-2" id="file-list-container">
+            <!-- Loading Indicator -->
+            <div id="loading-spinner" class="flex flex-col items-center justify-center p-8 text-slate-400 gap-2">
+                <i class="fa-solid fa-spinner fa-spin text-2xl text-blue-600"></i>
+                <span class="text-sm text-center">Mengunduh daftar dokumen...</span>
+            </div>
+            <!-- Dynamic File Items list -->
+            <div id="file-list" class="space-y-1"></div>
+            <!-- Empty state -->
+            <div id="empty-state" class="hidden text-center p-6 text-slate-400 text-sm">
+                <i class="fa-solid fa-folder-open text-3xl mb-2 text-slate-300"></i>
+                <p id="empty-state-msg">Tidak ada dokumen yang ditemukan.</p>
+                <button onclick="fetchCSVData()" class="mt-3 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-xs font-medium hover:bg-blue-100 transition">
+                    <i class="fa-solid fa-rotate-right mr-1"></i> Coba Lagi
+                </button>
+            </div>
+        </div>
+
+        <!-- Sidebar Footer / LocalStorage Info -->
+        <div class="p-3 border-t border-slate-200 bg-slate-50 text-xs text-slate-500 flex items-center justify-between">
+            <span class="flex items-center gap-1.5">
+                <span id="storage-status-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Storage Lokal Aktif</span>
+            </span>
+            <button onclick="clearLocalStorage()" class="hover:text-red-600 transition-colors" title="Hapus Riwayat Sesi">
+                <i class="fa-solid fa-trash-can"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- Main Canvas Area -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-200/70">
+        
+        <!-- Header / Top Bar -->
+        <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
+            <div class="flex items-center gap-3 overflow-hidden pr-2">
+                <!-- Toggle Sidebar Button -->
+                <button 
+                    onclick="toggleSidebar()" 
+                    class="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors flex-shrink-0"
+                    title="Sembunyikan/Tampilkan Navigasi">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+
+                <!-- Document Info Header -->
+                <div class="truncate">
+                    <h2 id="current-doc-title" class="font-semibold text-slate-800 text-sm md:text-base truncate">
+                        Pilih Dokumen
+                    </h2>
+                    <p id="current-doc-url" class="text-xs text-slate-400 truncate hidden md:block">
+                        Silakan pilih berkas dari panel sebelah kiri
+                    </p>
+                </div>
+            </div>
+
+            <!-- Header Action Controls -->
+            <div class="flex items-center gap-2 flex-shrink-0">
+                <!-- Open in New Tab Button -->
+                <a 
+                    id="btn-open-newtab" 
+                    href="#" 
+                    target="_blank" 
+                    class="hidden items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-xs md:text-sm font-medium px-3.5 py-2 rounded-lg transition-colors shadow-sm"
+                    title="Buka dokumen di tab baru">
+                    <span>Buka di Tab Baru</span>
+                    <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                </a>
+            </div>
+        </header>
+
+        <!-- Welcome / Initial Screen Canvas -->
+        <div id="welcome-canvas" class="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-500">
+            <div class="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl mb-4 shadow-sm">
+                <i class="fa-solid fa-file-pdf"></i>
+            </div>
+            <h3 class="text-lg font-bold text-slate-800 mb-1">Selamat Datang di DocViewer Pro</h3>
+            <p class="text-sm max-w-sm mb-4">Pilih salah satu dokumen dari daftar di sebelah kiri untuk melihat kontennya secara langsung.</p>
+        </div>
+
+        <!-- Viewer Iframe & Fallback Container -->
+        <div id="iframe-container" class="flex-1 w-full h-full relative hidden z-10 bg-white">
+            <iframe 
+                id="doc-frame" 
+                class="w-full h-full border-none bg-white" 
+                src="about:blank" 
+                title="Preview Dokumen"
+                allow="fullscreen">
+            </iframe>
+            <!-- Embed Error / Alternative Viewer Overlay -->
+            <div id="embed-fallback" class="hidden absolute inset-0 bg-slate-50 flex flex-col items-center justify-center p-6 text-center z-20">
+                <div class="w-16 h-16 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center text-2xl mb-4 shadow-sm">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800 mb-1">Pratinjau Tidak Dapat Ditampilkan Langsung</h3>
+                <p class="text-sm text-slate-500 max-w-md mb-6">
+                    Penyedia dokumen menolak tampilan langsung via frame internal. Anda tetap dapat membukanya melalui tombol di bawah:
+                </p>
+                <div class="flex flex-wrap items-center justify-center gap-3">
+                    <a id="fallback-direct-link" href="#" target="_blank" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg shadow-sm transition flex items-center gap-2">
+                        <span>Buka Dokumen di Tab Baru</span>
+                        <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // CSV Data URL Source
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRzgyLMktjvL-VnPMen1U5dlfAd-75C3J7FheKuLwBq2Q6JI2rke5Y4rSuKtVom850ZzKitpQ1AqkOl/pub?gid=0&single=true&output=csv";
+        
+        // CORS Proxies for fallback if direct fetch is blocked
+        const PROXIES = [
+            (url) => url,
+            (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+            (url) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+        ];
+
+        // App State
+        let documentList = [];
+        let activeDocIndex = null;
+
+        // On Page Load Initialization
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchCSVData();
+            restoreLastViewedDoc();
+        });
+
+        // 1. Fetch CSV Data with Proxy Auto-Retry
+        async function fetchCSVData() {
+            const loadingSpinner = document.getElementById('loading-spinner');
+            const fileListEl = document.getElementById('file-list');
+            const emptyState = document.getElementById('empty-state');
+            
+            loadingSpinner.classList.remove('hidden');
+            fileListEl.innerHTML = '';
+            emptyState.classList.add('hidden');
+
+            let csvText = null;
+
+            // Try direct fetch first, then CORS proxies if needed
+            for (const proxyFn of PROXIES) {
+                try {
+                    const targetUrl = proxyFn(CSV_URL);
+                    const response = await fetch(targetUrl, { cache: "no-cache" });
+                    if (response.ok) {
+                        const text = await response.text();
+                        if (text && text.trim().length > 0) {
+                            csvText = text;
+                            break; // Success!
+                        }
+                    }
+                } catch (err) {
+                    console.warn("Fetch attempt failed, trying next method...", err);
+                }
+            }
+
+            if (csvText) {
+                documentList = parseCSV(csvText);
+                if (documentList.length > 0) {
+                    localStorage.setItem('docviewer_cached_list', JSON.stringify(documentList));
+                    renderFileList(documentList);
+                } else {
+                    showEmptyState("Format CSV tidak berisi data dokumen yang valid.");
+                }
+            } else {
+                // Fallback to cached data if network failed
+                const cachedData = localStorage.getItem('docviewer_cached_list');
+                if (cachedData) {
+                    try {
+                        documentList = JSON.parse(cachedData);
+                        renderFileList(documentList);
+                        console.log("Menggunakan data cache lokal.");
+                    } catch (e) {
+                        showEmptyState("Gagal memuat dokumen dari server maupun cache.");
+                    }
+                } else {
+                    showEmptyState("Gagal mengunduh CSV dari Google Sheets. Pastikan spreadsheet dipublikasikan ke web.");
+                }
+            }
+
+            loadingSpinner.classList.add('hidden');
+        }
+
+        function showEmptyState(msg) {
+            const emptyState = document.getElementById('empty-state');
+            const msgEl = document.getElementById('empty-state-msg');
+            const countEl = document.getElementById('file-count');
+            
+            if (msgEl) msgEl.innerText = msg;
+            emptyState.classList.remove('hidden');
+            countEl.innerText = "0 Berkas";
+        }
+
+        // CSV Parser Logic supporting quotes and flexible column positions
+        function parseCSV(text) {
+            const lines = text.split(/\r\n|\n|\r/);
+            const items = [];
+
+            lines.forEach((line, index) => {
+                const trimmed = line.trim();
+                if (!trimmed) return;
+                
+                // Parse CSV row taking quoted strings into account
+                const columns = parseCSVRow(trimmed);
+                
+                if (columns.length >= 1) {
+                    let col1 = columns[0] ? columns[0].trim() : '';
+                    let col2 = columns[1] ? columns[1].trim() : '';
+
+                    if (col1 || col2) {
+                        let name = col1;
+                        let url = col2;
+
+                        // Auto detect which column contains the URL
+                        if (isValidURL(col1) && !isValidURL(col2)) {
+                            url = col1;
+                            name = col2 || `Dokumen ${items.length + 1}`;
+                        } else if (!isValidURL(col1) && isValidURL(col2)) {
+                            name = col1;
+                            url = col2;
+                        } else if (isValidURL(col1)) {
+                            url = col1;
+                            name = `Dokumen ${items.length + 1}`;
+                        }
+
+                        // Ignore CSV table headers (e.g. 'Nama', 'Title', 'URL', 'Link')
+                        const isHeader = ['nama', 'title', 'judul', 'url', 'link', 'alamat'].includes(name.toLowerCase());
+                        
+                        if (!isHeader && url && isValidURL(url)) {
+                            items.push({ 
+                                id: items.length, 
+                                name: name || `Dokumen ${items.length + 1}`, 
+                                url: url 
+                            });
+                        }
+                    }
+                }
+            });
+
+            return items;
+        }
+
+        // Helper to parse individual CSV rows safely
+        function parseCSVRow(row) {
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+            const delimiter = row.includes(';') && !row.includes(',') ? ';' : ',';
+
+            for (let i = 0; i < row.length; i++) {
+                const char = row[i];
+                if (char === '"') {
+                    inQuotes = !inQuotes;
+                } else if (char === delimiter && !inQuotes) {
+                    result.push(current.replace(/^"|"$/g, '').trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.replace(/^"|"$/g, '').trim());
+            return result;
+        }
+
+        function isValidURL(string) {
+            if (!string) return false;
+            try {
+                const u = new URL(string);
+                return u.protocol === "http:" || u.protocol === "https:";
+            } catch (_) {
+                return false;
+            }
+        }
+
+        // Render Navigation File List
+        function renderFileList(list) {
+            const fileListEl = document.getElementById('file-list');
+            const emptyState = document.getElementById('empty-state');
+            const countEl = document.getElementById('file-count');
+
+            fileListEl.innerHTML = '';
+            countEl.innerText = `${list.length} Berkas Tersedia`;
+
+            if (list.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            list.forEach((item) => {
+                const isActive = activeDocIndex === item.id;
+                
+                const btn = document.createElement('button');
+                btn.className = `w-full text-left p-3 rounded-lg flex items-center gap-3 transition-all ${
+                    isActive 
+                    ? 'bg-blue-50 text-blue-700 font-semibold border-l-4 border-blue-600 shadow-sm' 
+                    : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                }`;
+                btn.onclick = () => selectDocument(item);
+
+                btn.innerHTML = `
+                    <i class="fa-solid ${getIconForUrl(item.url)} ${isActive ? 'text-blue-600' : 'text-slate-400'} text-base"></i>
+                    <div class="truncate flex-1">
+                        <p class="text-sm truncate">${escapeHtml(item.name)}</p>
+                    </div>
+                    ${isActive ? '<i class="fa-solid fa-chevron-right text-xs text-blue-600"></i>' : ''}
+                `;
+
+                fileListEl.appendChild(btn);
+            });
+        }
+
+        function getIconForUrl(url) {
+            if (url.includes('.pdf')) return 'fa-file-pdf text-red-500';
+            if (url.includes('docs.google.com')) return 'fa-file-word text-blue-500';
+            if (url.includes('sheets.google.com')) return 'fa-file-excel text-emerald-500';
+            return 'fa-file-lines';
+        }
+
+        // Search Data Text & Clear Filter Logic
+        function handleSearch() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            const clearBtn = document.getElementById('clear-search');
+
+            if (query.length > 0) {
+                clearBtn.classList.remove('hidden');
+            } else {
+                clearBtn.classList.add('hidden');
+            }
+
+            const filtered = documentList.filter(doc => 
+                doc.name.toLowerCase().includes(query) || doc.url.toLowerCase().includes(query)
+            );
+
+            renderFileList(filtered);
+        }
+
+        function clearSearch() {
+            const input = document.getElementById('search-input');
+            input.value = '';
+            document.getElementById('clear-search').classList.add('hidden');
+            renderFileList(documentList);
+            input.focus();
+        }
+
+        // Select Document & Display in Main Canvas
+        function selectDocument(doc) {
+            activeDocIndex = doc.id;
+            
+            // Save state to LocalStorage
+            localStorage.setItem('docviewer_last_selected', JSON.stringify(doc));
+
+            // Update UI Headers
+            document.getElementById('current-doc-title').innerText = doc.name;
+            document.getElementById('current-doc-url').innerText = doc.url;
+            
+            const btnOpenNewTab = document.getElementById('btn-open-newtab');
+            btnOpenNewTab.href = doc.url;
+            btnOpenNewTab.classList.remove('hidden');
+            btnOpenNewTab.classList.add('flex');
+
+            // Setup Embed URL for Previewing safely
+            const iframeContainer = document.getElementById('iframe-container');
+            const iframe = document.getElementById('doc-frame');
+            const welcomeCanvas = document.getElementById('welcome-canvas');
+            const embedFallback = document.getElementById('embed-fallback');
+            const fallbackDirectLink = document.getElementById('fallback-direct-link');
+
+            fallbackDirectLink.href = doc.url;
+            embedFallback.classList.add('hidden');
+
+            let embedUrl = formatEmbedUrl(doc.url);
+
+            iframe.src = embedUrl;
+            welcomeCanvas.classList.add('hidden');
+            iframeContainer.classList.remove('hidden');
+
+            // Refresh File List styling
+            handleSearch();
+
+            // Auto close sidebar on mobile screen
+            if (window.innerWidth < 768) {
+                toggleSidebar(false);
+            }
+        }
+
+        // Helper function to handle Google Drive & PDF Embed URL conversions
+        function formatEmbedUrl(rawUrl) {
+            if (!rawUrl) return 'about:blank';
+            let url = rawUrl.trim();
+
+            // Extract Google Drive File ID if present (handles /file/d/FILE_ID/view, /file/d/FILE_ID/edit, or open?id=FILE_ID)
+            const driveFileIdMatch = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/) || url.match(/id=([a-zA-Z0-9_-]+)/);
+            if (driveFileIdMatch && driveFileIdMatch[1]) {
+                const fileId = driveFileIdMatch[1];
+                return `https://drive.google.com/file/d/${fileId}/preview`;
+            }
+
+            // Handle Google Drive / Docs links generally to enable preview mode
+            if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+                if (url.includes('/view') || url.includes('/edit')) {
+                    return url.replace(/\/view.*$/, '/preview').replace(/\/edit.*$/, '/preview');
+                }
+                return url;
+            }
+
+            // Standard PDF fallback using Google Docs Viewer embedder
+            if (url.toLowerCase().includes('.pdf')) {
+                return `https://docs.google.com/gview?url=${encodeURIComponent(url)}&embedded=true`;
+            }
+
+            return url;
+        }
+
+        // Restore last viewed document from LocalStorage
+        function restoreLastViewedDoc() {
+            const savedDoc = localStorage.getItem('docviewer_last_selected');
+            if (savedDoc) {
+                try {
+                    const doc = JSON.parse(savedDoc);
+                    selectDocument(doc);
+                } catch (e) {
+                    console.error("Gagal memuat dokumen terakhir dari storage", e);
+                }
+            }
+        }
+
+        // Toggle Sidebar Nav (Hide/Unhide)
+        function toggleSidebar(forceState = null) {
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebar-overlay');
+            
+            const isMobile = window.innerWidth < 768;
+
+            if (isMobile) {
+                // Mobile behavior (sliding drawer with overlay)
+                const isClosed = sidebar.classList.contains('-translate-x-full');
+                const shouldOpen = forceState !== null ? forceState : isClosed;
+
+                if (shouldOpen) {
+                    sidebar.classList.remove('-translate-x-full');
+                    overlay.classList.remove('hidden');
+                } else {
+                    sidebar.classList.add('-translate-x-full');
+                    overlay.classList.add('hidden');
+                }
+            } else {
+                // Desktop behavior (toggle show/hide sidebar)
+                const isHidden = sidebar.classList.contains('md:-ml-72');
+                const shouldHide = forceState !== null ? !forceState : !isHidden;
+
+                if (shouldHide) {
+                    sidebar.classList.add('md:-ml-72');
+                } else {
+                    sidebar.classList.remove('md:-ml-72');
+                }
+            }
+        }
+
+        // Clear LocalStorage Sesi
+        function clearLocalStorage() {
+            localStorage.removeItem('docviewer_last_selected');
+            localStorage.removeItem('docviewer_cached_list');
+            location.reload();
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+        }
+    </script>
+</body>
+</html>
