@@ -41,14 +41,32 @@
     <aside id="sidebar" class="fixed md:relative z-30 w-72 h-full bg-white border-r border-slate-200 flex flex-col transition-all duration-300 transform -translate-x-full md:translate-x-0 md:ml-0 shadow-lg md:shadow-none shrink-0">
         
         <!-- Sidebar Header -->
-        <div class="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-file-pdf text-red-600 text-2xl"></i>
-                <h1 class="font-bold text-slate-800 text-lg tracking-tight">DocViewer Pro</h1>
+        <div class="p-3.5 border-b border-slate-200 bg-slate-50 flex flex-col gap-2.5">
+            <div class="flex items-center justify-between">
+                <!-- Partner Logos Header -->
+                <div class="flex items-center gap-2.5 overflow-hidden">
+                    <img 
+                        src="https://grandmitra.com/wp-content/uploads/2024/09/gm-1536x328.png" 
+                        alt="Grandmitra Logo" 
+                        class="h-6 max-w-[110px] object-contain"
+                        onerror="this.onerror=null; this.src='https://placehold.co/110x30/1e293b/ffffff?text=Grandmitra';"
+                    />
+                    <span class="text-slate-300 font-light text-sm">|</span>
+                    <img 
+                        src="https://www.krisbow.com/images/logo.png" 
+                        alt="Krisbow Logo" 
+                        class="h-5 max-w-[80px] object-contain"
+                        onerror="this.onerror=null; this.src='https://placehold.co/80x25/dc2626/ffffff?text=Krisbow';"
+                    />
+                </div>
+                <button onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-200/60 md:hidden" title="Tutup Sidebar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
             </div>
-            <button onclick="toggleSidebar()" class="text-slate-500 hover:text-slate-700 p-2 rounded-lg hover:bg-slate-200/60 md:hidden" title="Tutup Sidebar">
-                <i class="fa-solid fa-xmark text-lg"></i>
-            </button>
+            <div class="flex items-center gap-2 pt-1 border-t border-slate-200/60">
+                <i class="fa-solid fa-file-pdf text-red-600 text-sm"></i>
+                <h1 class="font-bold text-slate-800 text-sm tracking-tight">DocViewer Pro Catalog</h1>
+            </div>
         </div>
 
         <!-- Search Bar in Sidebar -->
@@ -132,7 +150,7 @@
     <main class="flex-1 flex flex-col h-full overflow-hidden bg-slate-200/70">
         
         <!-- Header / Top Bar -->
-        <header class="bg-white border-b border-slate-200 px-4 py-3 flex items-center justify-between shadow-sm z-10">
+        <header class="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shadow-sm z-10">
             <div class="flex items-center gap-3 overflow-hidden pr-2">
                 <!-- Toggle Sidebar Button -->
                 <button 
@@ -142,7 +160,7 @@
                     <i class="fa-solid fa-bars text-lg"></i>
                 </button>
 
-                <!-- Document Info Header -->
+                <!-- Document Info Header & Partner Brand -->
                 <div class="truncate">
                     <h2 id="current-doc-title" class="font-semibold text-slate-800 text-sm md:text-base truncate">
                         Pilih Dokumen
@@ -153,8 +171,23 @@
                 </div>
             </div>
 
-            <!-- Header Action Controls -->
-            <div class="flex items-center gap-2 flex-shrink-0">
+            <!-- Header Action Controls & Top Bar Logos -->
+            <div class="flex items-center gap-3 flex-shrink-0">
+                <div class="hidden sm:flex items-center gap-2.5 px-3 py-1 bg-slate-50 border border-slate-200 rounded-lg">
+                    <img 
+                        src="https://grandmitra.com/wp-content/uploads/2024/09/gm-1536x328.png" 
+                        alt="Grandmitra Logo" 
+                        class="h-5 object-contain"
+                        onerror="this.style.display='none';"
+                    />
+                    <span class="text-slate-300 font-light text-xs">|</span>
+                    <img 
+                        src="https://www.krisbow.com/images/logo.png" 
+                        alt="Krisbow Logo" 
+                        class="h-4 object-contain"
+                        onerror="this.style.display='none';"
+                    />
+                </div>
                 <!-- Open in New Tab Button -->
                 <a 
                     id="btn-open-newtab" 
